@@ -55,6 +55,8 @@ dkms.conf
 *.dwo
 
 # Executables
-*.o
 main
 help
+
+# Others
+.idea/
