@@ -49,8 +49,27 @@ void save_archive(struct tar_t* archive, const char* filename){
     }
 }
 
+void test_attack(int argc, char* argv[], struct tar_t* archive, const char* name_succes){
+    save_archive(archive, "archive.tar");
+
+    int result = validate_fuzzing(argc, argv);
+
+    if (result == 1){
+        printf("[OK]Success ! Crash detected !\n");
+        save_archive(archive,name_succes);
+        printf("Archive saved under the name : %s\n",name_succes);
+        printf("[KO]Failed !");
+    }
+}
+
 
 int main(int argc, char* argv[]){
+    if(argc < 2){
+        printf("Usage: ./fuzzer path_to_file\n");
+        return -1;
+    }
+
+
     struct tar_t archive;
 
     printf("--- Starting generation of archive---\n\n");
@@ -60,9 +79,13 @@ int main(int argc, char* argv[]){
     save_archive(&archive,"archive.tar");
 
     // First test buffer overflow
+    printf("--- [1] Buffer Overflow testing with 100 ---\n\n");
+
     init_clean_archive(&archive);
     memset(archive.name,'A', 100);
-    save_archive(&archive,"1_buffer_overflow.tar");
+    save_archive(&archive,"archive.tar");
+    test_attack(argc,argv,&archive,"success_buffer_overflow.tar");
+
 
     return 0;
 }
