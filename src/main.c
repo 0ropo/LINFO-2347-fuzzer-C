@@ -81,6 +81,40 @@ void brute_force_typeflag(int argc, char* argv[]) {
     }
 }
 
+void fuzz_numbers(int argc, char* argv[]) {
+    struct tar_t archive;
+    const char* payload[] = {
+            "-1",
+            "0",
+            "99999999999",
+            "ABCDEFGHIJK",
+            " ",
+            "\xFF\xFF\xFF\xFF"
+        };
+
+    int payload_size = sizeof(payload);
+
+    char success_name[50];
+    for (int i = 0; i < payload_size; i++){
+        init_clean_archive(&archive);
+        strncpy(archive.size, payload[i],12);
+        snprintf(success_name,50,"success_size_poison_%d.tar",i);
+        test_attack(argc, argv, &archive, success_name);
+
+        init_clean_archive(&archive);
+        strncpy(archive.mode, payload[i],8);
+        snprintf(success_name,50,"success_mode_poison_%d.tar",i);
+        test_attack(argc, argv, &archive, success_name);
+
+
+        init_clean_archive(&archive);
+        strncpy(archive.uid, payload[i],8);
+        snprintf(success_name,50,"success_uid_poison_%d.tar",i);
+        test_attack(argc, argv, &archive, success_name);
+    }
+}
+
+
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         printf("Usage: ./fuzzer path_to_extractor\n");
@@ -91,6 +125,11 @@ int main(int argc, char* argv[]) {
 
     printf("--- Starting fuzzing: brute force on typeflag ---\n");
     brute_force_typeflag(argc, argv);
+
+    printf("--- Starting fuzzing: injection on size,mode,uid ---\n");
+
+
+
 
     return 0;
 }
