@@ -18,10 +18,10 @@ unsigned int calculate_checksum(struct tar_t* entry){
         }
 */
 
-// Fonctions des différents types de fuzz
+// Fonctions of differents types of fuzzing
 
 void init_clean_archive(struct tar_t* archive){
-    memset(archive,0,sizeof(struct tar_t)); // cleanup de la mémoire
+    memset(archive,0,sizeof(struct tar_t)); // cleanup of mémoire
     strcpy(archive->name, "test.txt");
     strcpy(archive->mode, "0000777");
     strcpy(archive->uid, "0000000");
