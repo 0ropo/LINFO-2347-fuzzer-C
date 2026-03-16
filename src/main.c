@@ -1,27 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "help.h"
 
-/*
-unsigned int calculate_checksum(struct tar_t* entry){
-    memset(entry->chksum, ' ',8);
-    unsigned int check = 0;
-    unsigned char* raw = (unsigned char*) entry;
-    for(int i = 0; i < 512; i++){
-        check += raw[i];
-    }
-    snprintf(entry->chksum, sizeof(entry->chksum), "%06o0", check);
-        entry->chksum[6] = '\0';
-        entry->chksum[7] = ' ';
-        return check;
-        }
-*/
+#define BLOCK_SIZE 512
 
-// Fonctions of differents types of fuzzing
+void init_clean_archive(struct tar_t* archive) {
+    memset(archive, 0, sizeof(struct tar_t));
 
-void init_clean_archive(struct tar_t* archive){
-    memset(archive,0,sizeof(struct tar_t)); // cleanup of mémoire
     strcpy(archive->name, "test.txt");
     strcpy(archive->mode, "0000777");
     strcpy(archive->uid, "0000000");
@@ -33,89 +21,76 @@ void init_clean_archive(struct tar_t* archive){
     memcpy(archive->version, "00", 2);
 }
 
-void save_archive(struct tar_t* archive, const char* filename){
-    calculate_checksum(archive);
-
-    FILE *file = fopen(filename,"wb");
-
-    if (file != NULL){
-        fwrite(archive, sizeof(struct tar_t),1,file);
-        fclose(file);
-        printf("Created archive successfuly : %s\n", filename);
-    }
-
-    else{
-        printf("Error creating the file : %s\n",filename);
-    }
+void write_zero_block(FILE *file) {
+    char zeros[BLOCK_SIZE];
+    memset(zeros, 0, sizeof(zeros));
+    fwrite(zeros, 1, BLOCK_SIZE, file);
 }
 
-void test_attack(int argc, char* argv[], struct tar_t* archive, const char* name_succes){
-    save_archive(archive, "archive.tar");
+void generate_archive(struct tar_t* archive, const char* filename) {
+    calculate_checksum(archive);
+
+    FILE *file = fopen(filename, "wb");
+    if (file == NULL) {
+        printf("Error generating archive: %s\n", filename);
+        return;
+    }
+
+    fwrite(archive, sizeof(struct tar_t), 1, file);
+
+    write_zero_block(file);
+    write_zero_block(file);
+
+    fclose(file);
+    printf("Generated archive: %s\n", filename);
+}
+
+void test_attack(int argc, char* argv[], struct tar_t* archive, const char* success_name) {
+    generate_archive(archive, "archive.tar");
 
     int result = validate_fuzzing(argc, argv);
 
-    if (result == 1){
-        printf("[OK]Success ! Crash detected !\n");
-        save_archive(archive,name_succes);
-        printf("Archive saved under the name : %s\n",name_succes);
-        printf("[KO]Failed !");
+    if (result == 1) {
+        printf("[OK] Crash detected!\n");
+        generate_archive(archive, success_name);
+        printf("Saved crashing archive as: %s\n", success_name);
+    } else if (result == 0) {
+        printf("[KO] No crash.\n");
+    } else {
+        printf("[ERR] validate_fuzzing failed.\n");
     }
 }
 
+void brute_force_typeflag(int argc, char* argv[]) {
+    for (int value = 0; value <= 255; value++) {
+        struct tar_t archive;
+        char success_name[128];
 
-int main(int argc, char* argv[]){
-    if(argc < 2){
-        printf("Usage: ./fuzzer path_to_file\n");
+        init_clean_archive(&archive);
+        archive.typeflag = (char)value;
+
+        snprintf(success_name, sizeof(success_name), "successful_crashes/success_typeflag_%02X.tar", value);
+
+        printf("\n--- Testing typeflag = 0x%02X", value);
+
+        if (value >= 32 && value <= 126) {
+            printf(" ('%c')", value);
+        }
+
+        test_attack(argc, argv, &archive, success_name);
+    }
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        printf("Usage: ./fuzzer path_to_extractor\n");
         return -1;
     }
 
+    mkdir("successful_crashes", 0755);
 
-    struct tar_t archive;
-
-    printf("--- Starting generation of archive---\n\n");
-
-    // Starting with a clean archive
-    init_clean_archive(&archive);
-    save_archive(&archive,"archive.tar");
-    printf("--- Starting Fuzzing on archive.name: ---\n\n");
-
-    // First test buffer overflow
-    printf("--- [1] Fuzzing on name Buffer Overflow testing with 100 ---\n\n");
-
-    init_clean_archive(&archive);
-    memset(archive.name,'A', 100);
-    save_archive(&archive,"archive.tar");
-    test_attack(argc,argv,&archive,"success_buffer_overflow.tar");
-
-
-    printf("--- [2] Fuzzing on archive.name with formating ---\n\n");
-    init_clean_archive(&archive);
-    strcpy(archive.name,"%s%s%s%s%s");
-    save_archive(&archive,"archive.tar");
-    test_attack(argc,argv,&archive,"success_archivename.tar");
-
-
-    printf("--- Starting Fuzzing on archive.size: ---\n\n");
-    printf("--- [1] Fuzzing on archive.size with null size ---\n\n");
-    init_clean_archive(&archive);
-    strcpy(archive.size,"0");
-    save_archive(&archive,"archive.tar");
-    test_attack(argc,argv,&archive,"success_nullsize.tar");
-
-    printf("--- Starting Fuzzing on archive.size: ---\n\n");
-    printf("--- [2] Fuzzing on archive.size with null size ---\n\n");
-    init_clean_archive(&archive);
-    strcpy(archive.size,"-1");
-    save_archive(&archive,"archive.tar");
-    test_attack(argc,argv,&archive,"success_negativesize.tar");
-
-    printf("--- [3] Fuzzing on archive.size with negative size ---\n\n");
-    init_clean_archive(&archive);
-    memset(archive.size,'9',12);
-    save_archive(&archive,"archive.tar");
-    test_attack(argc,argv,&archive,"success_ultrabigsize.tar");
-
-
+    printf("--- Starting fuzzing: brute force on typeflag ---\n");
+    brute_force_typeflag(argc, argv);
 
     return 0;
 }

@@ -13,6 +13,7 @@ src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(TARGET) archive.tar
+	rm -f $(OBJ) $(TARGET) archive.tar test.txt
+	rm -rf successful_crashes
 
 .PHONY: clean
