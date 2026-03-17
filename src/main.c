@@ -116,6 +116,16 @@ void fuzz_numbers(int argc, char* argv[]) {
         strncpy(archive.gid, payload[i],8);
         snprintf(success_name,50,"successful_crashes/success_gid_injection_%d.tar",i);
         test_attack(argc, argv, &archive, success_name);
+
+        init_clean_archive(&archive);
+        strncpy(archive.mtime, payload[i],12);
+        snprintf(success_name,50,"successful_crashes/success_mtime_injection_%d.tar",i);
+        test_attack(argc, argv, &archive, success_name);
+
+        init_clean_archive(&archive);
+        strncpy(archive.version, payload[i],2);
+        snprintf(success_name,50,"successful_crashes/success_version_injection_%d.tar",i);
+        test_attack(argc, argv, &archive, success_name);
     }
 }
 
