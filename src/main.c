@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
     brute_force_typeflag(argc, argv);
 
     printf("--- Starting fuzzing: injection on size,mode,uid ---\n");
-
+    fuzz_numbers(argc, argv);
 
 
 
