@@ -20,5 +20,9 @@ int main(int argc, char* argv[]) {
     printf("--- Starting non-null termination tests ---\n");
     fuzz_non_null_termination(argc, argv);
 
+    printf("--- Starting octal payload tests ---\n");
+    fuzz_octal(argc, argv);
+
+    fuzz_strings_injection(argc,argv);
     return 0;
 }
