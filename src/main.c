@@ -98,18 +98,23 @@ void fuzz_numbers(int argc, char* argv[]) {
     for (int i = 0; i < payload_size; i++){
         init_clean_archive(&archive);
         strncpy(archive.size, payload[i],12);
-        snprintf(success_name,50,"success_size_poison_%d.tar",i);
+        snprintf(success_name,50,"successful_crashes/success_size_injection_%d.tar",i);
         test_attack(argc, argv, &archive, success_name);
 
         init_clean_archive(&archive);
         strncpy(archive.mode, payload[i],8);
-        snprintf(success_name,50,"success_mode_poison_%d.tar",i);
+        snprintf(success_name,50,"successful_crashes/success_mode_injection_%d.tar",i);
         test_attack(argc, argv, &archive, success_name);
 
 
         init_clean_archive(&archive);
         strncpy(archive.uid, payload[i],8);
-        snprintf(success_name,50,"success_uid_poison_%d.tar",i);
+        snprintf(success_name,50,"successful_crashes/success_uid_injection_%d.tar",i);
+        test_attack(argc, argv, &archive, success_name);
+
+        init_clean_archive(&archive);
+        strncpy(archive.gid, payload[i],8);
+        snprintf(success_name,50,"successful_crashes/success_gid_injection_%d.tar",i);
         test_attack(argc, argv, &archive, success_name);
     }
 }
