@@ -129,6 +129,27 @@ void fuzz_numbers(int argc, char* argv[]) {
     }
 }
 
+void fuzz_text_injection(int argc, char* argv[]) {
+    printf("--- Starting fuzzing: injection on text ---\n");
+
+    struct tar_t archive;
+
+    const char* payload[] = {
+        "/%x/%n/%s/%p"
+        "%s%s%s%s%s%s%s",
+        " ",
+        "../../../../etc/passwd",
+        "../",
+        "A\x00B\x00C\x00D",
+    };
+
+    for (int i = 0; i < payload_size; i++) {
+        init_clean_archive(&archive);
+        strncpy(archive.name, payload[i],100);
+        snprintf(success_name,50,"successful_crashes/success_name_injection_%d.tar",i);
+        test_attack(argc, argv, &archive, success_name);
+    }
+}
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
