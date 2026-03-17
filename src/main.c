@@ -133,7 +133,6 @@ void fuzz_text_injection(int argc, char* argv[]) {
     printf("--- Starting fuzzing: injection on text ---\n");
 
     struct tar_t archive;
-    int payload_size = sizeof(payload);
 
     char success_name[50];
 
@@ -145,6 +144,8 @@ void fuzz_text_injection(int argc, char* argv[]) {
         "../",
         "A\x00B\x00C\x00D",
     };
+
+    int payload_size = sizeof(payload);
 
     for (int i = 0; i < payload_size; i++) {
         init_clean_archive(&archive);
