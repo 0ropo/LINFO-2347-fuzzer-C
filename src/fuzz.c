@@ -158,22 +158,23 @@ void fuzz_octal(int argc, char *argv[]) {
         {"chksum",   offsetof(struct tar_t, chksum),   sizeof(archive.chksum)},
         {"linkname", offsetof(struct tar_t, linkname), sizeof(archive.linkname)},
         {"magic",    offsetof(struct tar_t, magic),    sizeof(archive.magic)},
+        {"version",  offsetof(struct tar_t, version),  sizeof(archive.version)},
         {"uname",    offsetof(struct tar_t, uname),    sizeof(archive.uname)},
         {"gname",    offsetof(struct tar_t, gname),    sizeof(archive.gname)}
     };
 
-    const char* payload[] = {"88888888","99999999999"," 123","123 ","+123","-000001","0x123","\000123","0000000"};
+    const char* payload[] = {"88888888","99999999999"," 123","123 ","+123","-000001","0x123","\000123","0000000", "-200"};
 
     int fields_size = sizeof(fields) / sizeof(fields[0]);
     int payload_size = sizeof(payload)/sizeof(payload[0]);
 
-    for (int i = 0; i < payload_size; i++) {
+    for (int i = 0; i < fields_size; i++) {
         char *field_ptr;
         char success_name[128];
-        for (int j = 0; j < fields_size; j++) {
+        for (int j = 0; j < payload_size; j++) {
             init_clean_archive(&archive);
-            field_ptr = (char *)((char *)&archive + fields[j].offset);
-            strncpy(field_ptr, payload[i], fields[j].size);
+            field_ptr = (char *)((char *)&archive + fields[i].offset);
+            strncpy(field_ptr, payload[j], fields[i].size);
             snprintf(success_name,sizeof(success_name),"success_%s_injection_octal_payload_number%d_%s.tar", fields[j].name, i, tested_file);
             run_fuzz(argc, argv, &archive, success_name);
         }
@@ -194,26 +195,91 @@ void fuzz_strings_injection(int argc, char* argv[]) {
         {"chksum",   offsetof(struct tar_t, chksum),   sizeof(archive.chksum)},
         {"linkname", offsetof(struct tar_t, linkname), sizeof(archive.linkname)},
         {"magic",    offsetof(struct tar_t, magic),    sizeof(archive.magic)},
+        {"version",  offsetof(struct tar_t, version),  sizeof(archive.version)},
         {"uname",    offsetof(struct tar_t, uname),    sizeof(archive.uname)},
         {"gname",    offsetof(struct tar_t, gname),    sizeof(archive.gname)}
     };
 
-    const char* payload[] = {"../../../../../../etc/passwd", "/%x/%n/%s/%p","%s%s%s%s%s%s%s","A\x00B\x00C\x00D"};
+    const char* payload[] = {"../../../../../../etc/hostname", "/%x/%n/%s/%p","%s%s%s%s%s%s%s","A\x00B\x00C\x00D"};
 
     int fields_size = sizeof(fields) / sizeof(fields[0]);
     int payload_size = sizeof(payload) / sizeof(payload[0]);
 
     for (int i = 0; i < fields_size; i++) {
-        char success_name[128];
-        init_clean_archive(&archive);
         for (int j = 0; j < payload_size; j++) {
-            if (strcmp(fields[j].name,"linkname") == 0){
+            char success_name[128];
+            init_clean_archive(&archive);
+            if (strcmp(fields[i].name,"linkname") == 0){
                 archive.typeflag = '2';
             }
-            char *field_ptr = (char*)((char*)&archive + fields[j].offset);
-            strncpy(field_ptr, payload[i],fields[j].size);
+            char *field_ptr = (char*)((char*)&archive + fields[i].offset);
+            strncpy(field_ptr, payload[j],fields[i].size);
             snprintf(success_name, sizeof(success_name), "success_string_injection_%s_payload_%d_%s.tar", fields[j].name, i, tested_file);
             run_fuzz(argc, argv, &archive, success_name);
         }
     }
+}
+
+void fuzz_on_time(int argc, char* argv[]){
+    struct tar_t archive;
+    const char* tested_file = get_filename(argv[1]);
+
+    field_desc fields[] = {
+        {"mode",     offsetof(struct tar_t, mode),     sizeof(archive.mode)},
+        {"size",     offsetof(struct tar_t, size),     sizeof(archive.size)},
+        {"mtime",    offsetof(struct tar_t, mtime),    sizeof(archive.mtime)},
+        {"version",  offsetof(struct tar_t, version),  sizeof(archive.version)},
+    };
+
+    const char* payload[] = {"88888888","999999999999999999999999999999999","17777777777", "-200"};
+
+    int fields_size = sizeof(fields) / sizeof(fields[0]);
+    int payload_size = sizeof(payload)/sizeof(payload[0]);
+
+    for (int i = 0; i < fields_size; i++) {
+        char *field_ptr;
+        char success_name[128];
+        for (int j = 0; j < payload_size; j++) {
+            init_clean_archive(&archive);
+            field_ptr = (char *)((char *)&archive + fields[i].offset);
+            strncpy(field_ptr, payload[j], fields[i].size);
+            snprintf(success_name,sizeof(success_name),"success_%s_time_payload_number%d_%s.tar", fields[i].name, i, tested_file);
+            run_fuzz(argc, argv, &archive, success_name);
+        }
+    }
+}
+
+
+void fuzz_on_gnu_base256(int argc, char* argv[]){
+    struct tar_t archive;
+    const char* tested_file = get_filename(argv[1]);
+
+    field_desc fields[] ={
+        {"size", offsetof(struct tar_t, size), sizeof(archive.size)},
+        {"uid",      offsetof(struct tar_t, uid),      sizeof(archive.uid)},
+        {"gid",      offsetof(struct tar_t, gid),      sizeof(archive.gid)},
+        {"mtime", offsetof(struct tar_t, mtime), sizeof(archive.mtime)},
+    };
+
+    const char payload_big[] = {'\x80', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF'};
+    const char payload_negative[] = {'\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF', '\xFF'};
+    int fields_size = sizeof(fields) / sizeof(fields[0]);
+
+    for(int i = 0; i < fields_size; i++){
+        char success_name[128];
+        char *field_ptr;
+
+        init_clean_archive(&archive);
+        field_ptr = (char *)((char *)&archive + fields[i].offset);
+        memcpy(field_ptr, payload_big, fields[i].size);
+        snprintf(success_name, sizeof(success_name), "success_%s_fuzz_on_gnu_base256_payload_huge_%s.tar", fields[i].name, tested_file);
+        run_fuzz(argc, argv, &archive, success_name);
+
+        init_clean_archive(&archive);
+        field_ptr = (char *)((char *)&archive + fields[i].offset);
+        memcpy(field_ptr, payload_negative, fields[i].size);
+        snprintf(success_name, sizeof(success_name), "success_%s_void fuzz_on_gnu_base256_payload_negative_%s.tar", fields[i].name, tested_file);
+        run_fuzz(argc, argv, &archive, success_name);
+    }
+
 }

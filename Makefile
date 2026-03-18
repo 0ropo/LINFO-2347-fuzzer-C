@@ -14,5 +14,6 @@ src/%.o: src/%.c
 
 clean:
 	rm -f $(OBJ) $(TARGET) archive.tar test.txt success*
+	rm -f %s* A B C D \ * -1 0 8888* 9999* +123 -000* 0x123
 
 .PHONY: clean

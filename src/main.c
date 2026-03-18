@@ -24,5 +24,12 @@ int main(int argc, char* argv[]) {
     printf("--- Starting string injection tests ---\n");
     fuzz_strings_injection(argc,argv);
 
+    printf("--- Starting tests on mtime ---\n");
+    fuzz_on_time(argc,argv);
+
+    printf("--- Starting tests on gnu_base256 ---\n");
+    fuzz_on_gnu_base256(argc,argv);
+
+
     return 0;
 }
