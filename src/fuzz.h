@@ -3,6 +3,7 @@
 
 #include "defs.h"
 
+const char* get_filename(const char* path);
 void run_fuzz(int argc, char* argv[], struct tar_t* archive, const char* success_name);
 void fuzz_typeflag(int argc, char* argv[]);
 void fuzz_discover(int argc, char* argv[]);
