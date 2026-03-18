@@ -10,9 +10,9 @@ void fuzz_discover(int argc, char* argv[]);
 void fuzz_non_null_termination(int argc, char* argv[]);
 void fuzz_octal(int argc, char* argv[]);
 void fuzz_strings_injection(int argc, char* argv[]);
-void fuzz_on_time(int argc, char* argv[]);
 void fuzz_on_gnu_base256(int argc, char* argv[]);
 void fuzz_version(int argc, char* argv[]);
 void fuzz_equal_name_equal_size(int argc, char* argv[]);
+void fuzz_by_truncation(int argc, char* argv[]);
 
 #endif

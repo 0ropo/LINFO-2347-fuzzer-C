@@ -36,5 +36,10 @@ int main(int argc, char* argv[]) {
     printf("--- Starting tests on equal name and equal size ---\n");
     fuzz_equal_name_equal_size(argc, argv);
 
+    fuzz_on_gnu_base256(argc, argv);
+
+
+    printf("--- Starting tests on wiping ---\n");
+    fuzz_by_truncation(argc, argv);
     return 0;
 }
