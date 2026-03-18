@@ -13,7 +13,6 @@ src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(TARGET) archive.tar test.txt success*
-	rm -f %s* A B C D \ * -1 0 8888* 9999* +123 -000* 0x123
+	rm -f $(OBJ) $(TARGET) archive.tar test.txt success* "/%x/%n/%s/%p" "%s%s%s%s%s%s%s" "A\x00B\x00C\x00D" "88888888" "99999999999" " 123" "123 " "+123" ./-000001 ./-200 "0x123" "\000123" "0000000" name
 
 .PHONY: clean

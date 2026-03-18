@@ -111,3 +111,64 @@ void generate_archive(struct tar_t* archive, const char* filename) {
 
     fclose(file);
 }
+
+void generate_two_entry_archive_same_name_same_size(
+    struct tar_t* first,
+    const unsigned char* data1,
+    size_t data1_size,
+    struct tar_t* second,
+    const unsigned char* data2,
+    size_t data2_size,
+    const char* filename
+);
+
+static void write_padded_data(FILE *file, const unsigned char *data, size_t size) {
+    char block[BLOCK_SIZE];
+    size_t written = 0;
+
+    while (written < size) {
+        size_t chunk = size - written;
+        if (chunk > BLOCK_SIZE) {
+            chunk = BLOCK_SIZE;
+        }
+
+        memset(block, 0, BLOCK_SIZE);
+        memcpy(block, data + written, chunk);
+        fwrite(block, 1, BLOCK_SIZE, file);
+
+        written += chunk;
+    }
+
+    if (size == 0) {
+        return;
+    }
+}
+
+void generate_two_entry_archive_same_name_same_size(
+    struct tar_t* first,
+    const unsigned char* data1,
+    size_t data1_size,
+    struct tar_t* second,
+    const unsigned char* data2,
+    size_t data2_size,
+    const char* filename
+) {
+    FILE *file = fopen(filename, "wb");
+    if (file == NULL) {
+        printf("Error generating archive: %s\n", filename);
+        return;
+    }
+
+    calculate_checksum(first);
+    fwrite(first, sizeof(struct tar_t), 1, file);
+    write_padded_data(file, data1, data1_size);
+
+    calculate_checksum(second);
+    fwrite(second, sizeof(struct tar_t), 1, file);
+    write_padded_data(file, data2, data2_size);
+
+    write_zero_block(file);
+    write_zero_block(file);
+
+    fclose(file);
+}

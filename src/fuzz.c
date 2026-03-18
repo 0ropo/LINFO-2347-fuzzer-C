@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include <time.h>
+#include <stdlib.h>
 
 #include "utils.h"
 #include "fuzz.h"
@@ -282,4 +283,124 @@ void fuzz_on_gnu_base256(int argc, char* argv[]){
         run_fuzz(argc, argv, &archive, success_name);
     }
 
+}
+
+void fuzz_version(int argc, char* argv[]) {
+    struct tar_t archive;
+    const char* tested_file = get_filename(argv[1]);
+    char success_name[128];
+
+    for (char c1 = '0'; c1 <= '9'; c1++) {
+        for (char c2 = '0'; c2 <= '9'; c2++) {
+            init_clean_archive(&archive);
+
+            archive.version[0] = c1;
+            archive.version[1] = c2;
+
+            snprintf(success_name, sizeof(success_name), "success_version_%c%c_%s.tar", c1, c2, tested_file);
+
+            printf("\n--- Testing version=\"%c%c\" ---\n", c1, c2);
+
+            run_fuzz(argc, argv, &archive, success_name);
+        }
+    }
+}
+
+static void set_regular_file_size(struct tar_t *archive, unsigned long long size) {
+    memset(archive->size, 0, sizeof(archive->size));
+    snprintf(archive->size, sizeof(archive->size), "%011llo", size);
+    archive->typeflag = '0';
+}
+
+void fuzz_equal_name_equal_size(int argc, char* argv[]) {
+    struct tar_t first;
+    struct tar_t second;
+    const char* tested_file = get_filename(argv[1]);
+    char success_name[128];
+
+    struct {
+        const char *label;
+        unsigned long long size;
+    } cases[] = {
+        {"size0", 0},
+        {"size1", 1},
+        {"size2", 2},
+        {"size3", 3},
+        {"size4", 4},
+        {"size7", 7},
+        {"size8", 8},
+        {"size15", 15},
+        {"size16", 16},
+        {"size31", 31},
+        {"size32", 32},
+        {"size63", 63},
+        {"size64", 64},
+        {"size127", 127},
+        {"size128", 128},
+        {"size255", 255},
+        {"size256", 256},
+        {"size511", 511},
+        {"size512", 512}
+    };
+
+    int cases_size = sizeof(cases) / sizeof(cases[0]);
+
+    for (int i = 0; i < cases_size; i++) {
+        unsigned long long size = cases[i].size;
+        unsigned char *data1 = NULL;
+        unsigned char *data2 = NULL;
+
+        init_clean_archive(&first);
+        init_clean_archive(&second);
+
+        strcpy(first.name, "test.txt");
+        strcpy(second.name, "test.txt");
+
+        set_regular_file_size(&first, size);
+        set_regular_file_size(&second, size);
+
+        if (size > 0) {
+            data1 = malloc(size);
+            data2 = malloc(size);
+            if (!data1 || !data2) {
+                free(data1);
+                free(data2);
+                continue;
+            }
+
+            memset(data1, 'A', size);
+            memset(data2, 'B', size);
+        }
+
+        snprintf(success_name, sizeof(success_name),
+                 "success_same_name_same_size_%s_%s.tar",
+                 cases[i].label, tested_file);
+
+        printf("\n--- Testing same-name same-size update (%s) ---\n",
+               cases[i].label);
+
+        generate_two_entry_archive_same_name_same_size(
+            &first, data1, size,
+            &second, data2, size,
+            "archive.tar"
+        );
+
+        int result = validate_fuzzing(argc, argv);
+        if (result == 1) {
+            printf("[OK] Crash detected!\n");
+            generate_two_entry_archive_same_name_same_size(
+                &first, data1, size,
+                &second, data2, size,
+                success_name
+            );
+            printf("Saved crashing archive as: %s\n", success_name);
+        } else if (result == 0) {
+            printf("[KO] No crash.\n");
+        } else {
+            printf("[ERR] validate_fuzzing failed.\n");
+        }
+
+        free(data1);
+        free(data2);
+    }
 }
