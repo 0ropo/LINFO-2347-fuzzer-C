@@ -9,18 +9,10 @@
 #include "utils.h"
 #include "fuzz.h"
 
-const char* get_filename(const char* path) {
-    const char* last_slash = strrchr(path, '/');
-    const char* last_backslash = strrchr(path, '\\');
-    const char* last_sep = last_slash;
-
-    if (last_backslash && (!last_sep || last_backslash > last_sep)) {
-        last_sep = last_backslash;
-    }
-
-    return last_sep ? last_sep + 1 : path;
-}
-
+/**
+ * Run the extractor on generated archive and check if it crashes.
+ * On crash, save the failing archive under success_<field>_<value>_<file>.
+ */
 void run_fuzz(int argc, char* argv[], struct tar_t* archive, const char* success_name) {
     generate_archive(archive, "archive.tar");
 
@@ -30,13 +22,18 @@ void run_fuzz(int argc, char* argv[], struct tar_t* archive, const char* success
         printf("[OK] Crash detected!\n");
         generate_archive(archive, success_name);
         printf("Saved crashing archive as: %s\n", success_name);
-    } else if (result == 0) {
+    } 
+    else if (result == 0) {
         printf("[KO] No crash.\n");
-    } else {
+    } 
+    else {
         printf("[ERR] validate_fuzzing failed.\n");
     }
 }
 
+/**
+ * Fuzz typeflag values [0..255] and save successful crash archives.
+ */
 void fuzz_typeflag(int argc, char* argv[]) {
     const char* tested_file = get_filename(argv[1]);
 
@@ -59,54 +56,9 @@ void fuzz_typeflag(int argc, char* argv[]) {
     }
 }
 
-void fuzz_discover(int argc, char* argv[]) {
-    struct tar_t archive;
-    const char* tested_file = get_filename(argv[1]);
-    const char* payload[] = {
-            "-1",
-            "0",
-            "99999999999",
-            "ABCDEFGHIJK",
-            " ",
-            "\xFF\xFF\xFF\xFF"
-        };
-
-    int payload_size = sizeof(payload) / sizeof(payload[0]);
-
-    char success_name[128];
-    for (int i = 0; i < payload_size; i++){
-        init_clean_archive(&archive);
-        strncpy(archive.size, payload[i],12);
-         snprintf(success_name, sizeof(success_name), "success_size_injection_%d_%s.tar", i, tested_file);
-        run_fuzz(argc, argv, &archive, success_name);
-
-        init_clean_archive(&archive);
-        strncpy(archive.mode, payload[i],8);
-        snprintf(success_name, sizeof(success_name), "success_mode_injection_%d_%s.tar", i, tested_file);
-        run_fuzz(argc, argv, &archive, success_name);
-
-        init_clean_archive(&archive);
-        strncpy(archive.uid, payload[i],8);
-        snprintf(success_name, sizeof(success_name), "success_uid_injection_%d_%s.tar", i, tested_file);
-        run_fuzz(argc, argv, &archive, success_name);
-
-        init_clean_archive(&archive);
-        strncpy(archive.gid, payload[i],8);
-        snprintf(success_name, sizeof(success_name), "success_gid_injection_%d_%s.tar", i, tested_file);
-        run_fuzz(argc, argv, &archive, success_name);
-
-        init_clean_archive(&archive);
-        strncpy(archive.mtime, payload[i],12);
-        snprintf(success_name, sizeof(success_name), "success_mtime_injection_%d_%s.tar", i, tested_file);
-        run_fuzz(argc, argv, &archive, success_name);
-
-        init_clean_archive(&archive);
-        strncpy(archive.version, payload[i],2);
-        snprintf(success_name, sizeof(success_name), "success_version_injection_%d_%s.tar", i, tested_file);
-        run_fuzz(argc, argv, &archive, success_name);
-    }
-}
-
+/**
+ * Fuzz non-null termination of each header field by filling bytes with 'A'.
+ */
 void fuzz_non_null_termination(int argc, char* argv[]) {
     struct tar_t archive;
     const char* tested_file = get_filename(argv[1]);
@@ -145,6 +97,9 @@ void fuzz_non_null_termination(int argc, char* argv[]) {
     }
 }
 
+/**
+ * Fuzz selected fields with octal-like payloads to test parser handling.
+ */
 void fuzz_octal(int argc, char *argv[]) {
     struct tar_t archive;
     const char* tested_file = get_filename(argv[1]);
@@ -176,12 +131,15 @@ void fuzz_octal(int argc, char *argv[]) {
             init_clean_archive(&archive);
             field_ptr = (char *)((char *)&archive + fields[i].offset);
             strncpy(field_ptr, payload[j], fields[i].size);
-            snprintf(success_name,sizeof(success_name),"success_%s_injection_octal_payload_number%d_%s.tar", fields[i].name, j, tested_file);
+            snprintf(success_name,sizeof(success_name),"success_%s_octal_%d_%s.tar", fields[i].name, j, tested_file);
             run_fuzz(argc, argv, &archive, success_name);
         }
     }
 }
 
+/**
+ * Fuzz multiple string payloads into every string field in tar header.
+ */
 void fuzz_strings_injection(int argc, char* argv[]) {
     struct tar_t archive;
     const char* tested_file = get_filename(argv[1]);
@@ -215,21 +173,24 @@ void fuzz_strings_injection(int argc, char* argv[]) {
             }
             char *field_ptr = (char*)((char*)&archive + fields[i].offset);
             strncpy(field_ptr, payload[j],fields[i].size);
-            snprintf(success_name, sizeof(success_name), "success_string_injection_%s_payload_%d_%s.tar", fields[i].name, j, tested_file);
+            snprintf(success_name, sizeof(success_name), "success_%s_string_injection_%d_%s.tar", fields[i].name, j, tested_file);
             run_fuzz(argc, argv, &archive, success_name);
         }
     }
 }
 
 
+/**
+ * Fuzz GNU base-256 numeric encoding in selected fields.
+ */
 void fuzz_on_gnu_base256(int argc, char* argv[]){
     struct tar_t archive;
     const char* tested_file = get_filename(argv[1]);
 
-    field_desc fields[] ={
-        {"size", offsetof(struct tar_t, size), sizeof(archive.size)},
-        {"uid",      offsetof(struct tar_t, uid),      sizeof(archive.uid)},
-        {"gid",      offsetof(struct tar_t, gid),      sizeof(archive.gid)},
+    field_desc fields[] = {
+        {"size",  offsetof(struct tar_t, size),  sizeof(archive.size)},
+        {"uid",   offsetof(struct tar_t, uid),   sizeof(archive.uid)},
+        {"gid",   offsetof(struct tar_t, gid),   sizeof(archive.gid)},
         {"mtime", offsetof(struct tar_t, mtime), sizeof(archive.mtime)},
     };
 
@@ -244,18 +205,21 @@ void fuzz_on_gnu_base256(int argc, char* argv[]){
         init_clean_archive(&archive);
         field_ptr = (char *)((char *)&archive + fields[i].offset);
         memcpy(field_ptr, payload_big, fields[i].size);
-        snprintf(success_name, sizeof(success_name), "success_%s_fuzz_on_gnu_base256_payload_huge_%s.tar", fields[i].name, tested_file);
+        snprintf(success_name, sizeof(success_name), "success_%s_base256_huge_%s.tar", fields[i].name, tested_file);
         run_fuzz(argc, argv, &archive, success_name);
 
         init_clean_archive(&archive);
         field_ptr = (char *)((char *)&archive + fields[i].offset);
         memcpy(field_ptr, payload_negative, fields[i].size);
-        snprintf(success_name, sizeof(success_name), "success_%s_fuzz_on_gnu_base256_payload_negative_%s.tar", fields[i].name, tested_file);
+        snprintf(success_name, sizeof(success_name), "success_%s_base256_negative_%s.tar", fields[i].name, tested_file);
         run_fuzz(argc, argv, &archive, success_name);
     }
 
 }
 
+/**
+ * Fuzz all 2-digit version fields [00..99].
+ */
 void fuzz_version(int argc, char* argv[]) {
     struct tar_t archive;
     const char* tested_file = get_filename(argv[1]);
@@ -277,12 +241,20 @@ void fuzz_version(int argc, char* argv[]) {
     }
 }
 
+/**
+ * Set the tar size field to an octal representation of a regular file size.
+ * @param archive: tar header whose size will be set.
+ * @param size: numeric file size.
+ */
 static void set_regular_file_size(struct tar_t *archive, unsigned long long size) {
     memset(archive->size, 0, sizeof(archive->size));
     snprintf(archive->size, sizeof(archive->size), "%011llo", size);
     archive->typeflag = '0';
 }
 
+/**
+ * Fuzz archive with two entries that share same name and size metadata.
+ */
 void fuzz_equal_name_equal_size(int argc, char* argv[]) {
     struct tar_t first;
     struct tar_t second;
@@ -343,12 +315,9 @@ void fuzz_equal_name_equal_size(int argc, char* argv[]) {
             memset(data2, 'B', size);
         }
 
-        snprintf(success_name, sizeof(success_name),
-                 "success_same_name_same_size_%s_%s.tar",
-                 cases[i].label, tested_file);
+        snprintf(success_name, sizeof(success_name), "success_equal_name_equal_size_%s_%s.tar", cases[i].label, tested_file);
 
-        printf("\n--- Testing same-name same-size update (%s) ---\n",
-               cases[i].label);
+        printf("\n--- Testing same-name same-size update (%s) ---\n", cases[i].label);
 
         generate_two_entry_archive_same_name_same_size(
             &first, data1, size,
@@ -357,17 +326,22 @@ void fuzz_equal_name_equal_size(int argc, char* argv[]) {
         );
 
         int result = validate_fuzzing(argc, argv);
+
         if (result == 1) {
             printf("[OK] Crash detected!\n");
+
             generate_two_entry_archive_same_name_same_size(
                 &first, data1, size,
                 &second, data2, size,
                 success_name
             );
+            
             printf("Saved crashing archive as: %s\n", success_name);
-        } else if (result == 0) {
+        } 
+        else if (result == 0) {
             printf("[KO] No crash.\n");
-        } else {
+        } 
+        else {
             printf("[ERR] validate_fuzzing failed.\n");
         }
 
@@ -375,6 +349,10 @@ void fuzz_equal_name_equal_size(int argc, char* argv[]) {
         free(data2);
     }
 }
+
+/**
+ * Fuzz by truncating the archive at various positions within header fields.
+ */
 void fuzz_by_truncation(int argc, char* argv[]) {
     struct tar_t archive;
     const char* tested_file = get_filename(argv[1]);
@@ -404,7 +382,7 @@ void fuzz_by_truncation(int argc, char* argv[]) {
         init_clean_archive(&archive);
 
         strncpy(archive.magic, "ustar", 6);
-        strncpy(archive.version, "00", 2);
+        memcpy(archive.version, "00", 2);
 
         size_t cut_position = fields[i].offset + fields[i].size;
 
@@ -417,7 +395,7 @@ void fuzz_by_truncation(int argc, char* argv[]) {
         result = validate_fuzzing(argc,argv);
 
         if (result == 1){
-            snprintf(success_name, sizeof(success_name), "success_truncation_on_%s.tar", fields[i].name);
+            snprintf(success_name, sizeof(success_name), "success_%s_truncation_%s.tar", fields[i].name, tested_file);
             f = fopen(success_name, "wb");
             if (f){
                 fwrite(&archive, 1, cut_position, f);
