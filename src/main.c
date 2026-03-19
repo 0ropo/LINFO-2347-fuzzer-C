@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     fuzz_strings_injection(argc, argv);
     fuzz_on_gnu_base256(argc, argv);
     fuzz_version(argc, argv);
-    fuzz_equal_name_equal_size(argc, argv);
+    fuzz_duplicate_headers(argc, argv);
     fuzz_by_truncation(argc, argv);
 
     return 0;

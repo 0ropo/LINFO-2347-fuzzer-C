@@ -129,34 +129,6 @@ void generate_archive(struct tar_t* archive, const char* filename) {
 }
 
 /**
- * Write one data block for a tar file entry, padded to 512-byte boundary.
- * @param file: open output file pointer.
- * @param data: data bytes to write.
- * @param size: data length in bytes.
- */
-static void write_padded_data(FILE *file, const unsigned char *data, size_t size) {
-    char block[BLOCK_SIZE];
-    size_t written = 0;
-
-    while (written < size) {
-        size_t chunk = size - written;
-        if (chunk > BLOCK_SIZE) {
-            chunk = BLOCK_SIZE;
-        }
-
-        memset(block, 0, BLOCK_SIZE);
-        memcpy(block, data + written, chunk);
-        fwrite(block, 1, BLOCK_SIZE, file);
-
-        written += chunk;
-    }
-
-    if (size == 0) {
-        return;
-    }
-}
-
-/**
  * Extract the filename component from a path (last / or \\ separator).
  * @param path: path string to parse.
  * @return pointer to the filename substring (inside path string).
@@ -171,44 +143,4 @@ const char* get_filename(const char* path) {
     }
 
     return last_sep ? last_sep + 1 : path;
-}
-
-/**
- * Generate a tar archive containing two entries with same filename and size.
- * This helper is used for specific fuzzing edge cases where duplicates are needed.
- * @param first: metadata for first entry.
- * @param data1: payload bytes for first entry.
- * @param data1_size: size of first payload.
- * @param second: metadata for second entry.
- * @param data2: payload bytes for second entry.
- * @param data2_size: size of second payload.
- * @param filename: output tar archive file.
- */
-void generate_two_entry_archive_same_name_same_size(
-    struct tar_t* first,
-    const unsigned char* data1,
-    size_t data1_size,
-    struct tar_t* second,
-    const unsigned char* data2,
-    size_t data2_size,
-    const char* filename
-) {
-    FILE *file = fopen(filename, "wb");
-    if (file == NULL) {
-        printf("Error generating archive: %s\n", filename);
-        return;
-    }
-
-    calculate_checksum(first);
-    fwrite(first, sizeof(struct tar_t), 1, file);
-    write_padded_data(file, data1, data1_size);
-
-    calculate_checksum(second);
-    fwrite(second, sizeof(struct tar_t), 1, file);
-    write_padded_data(file, data2, data2_size);
-
-    write_zero_block(file);
-    write_zero_block(file);
-
-    fclose(file);
 }
