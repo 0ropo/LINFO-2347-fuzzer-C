@@ -77,7 +77,7 @@ int validate_fuzzing(int argc, char* argv[])
 
 /**
  * Initialize a tar header with default internal values.
- * Used by fuzzing tests to start from a reproducible clean header.
+ * Used by fuzzing tests to start from a clean header.
  * @param archive: pointer to tar_t structure to initialize a tar header.
  */
 void init_clean_archive(struct tar_t* archive) {
@@ -96,7 +96,7 @@ void init_clean_archive(struct tar_t* archive) {
 
 /**
  * Write a single 512-byte zero block to a file.
- * Tar format requires two zero blocks at end of archive.
+ * Tar format requires two zero blocks at end of an archive.
  * @param file: open file pointer in write mode.
  */
 void write_zero_block(FILE *file) {
@@ -106,7 +106,7 @@ void write_zero_block(FILE *file) {
 }
 
 /**
- * Write a complete single-entry tar archive to disk from the tar header.
+ * Write a complete tar archive from the tar header.
  * This writes the header, plus two zero blocks to terminate the archive.
  * @param archive: tar header to write.
  * @param filename: output archive file name.
@@ -129,9 +129,9 @@ void generate_archive(struct tar_t* archive, const char* filename) {
 }
 
 /**
- * Extract the filename component from a path (last / or \\ separator).
+ * Extract the filename component from a path.
  * @param path: path string to parse.
- * @return pointer to the filename substring (inside path string).
+ * @return pointer to the filename substring.
  */
 const char* get_filename(const char* path) {
     const char* last_slash = strrchr(path, '/');

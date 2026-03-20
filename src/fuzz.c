@@ -32,7 +32,7 @@ void run_fuzz(int argc, char* argv[], struct tar_t* archive, const char* success
 }
 
 /**
- * Fuzz typeflag values [0..255] and save successful crash archives.
+ * Fuzz typeflag header values [0..255].
  */
 void fuzz_typeflag(int argc, char* argv[]) {
     const char* tested_file = get_filename(argv[1]);
@@ -99,7 +99,7 @@ void fuzz_non_null_termination(int argc, char* argv[]) {
 }
 
 /**
- * Fuzz selected fields with octal-like payloads to test parser handling.
+ * Fuzz header fields with octal-like payloads to test parser handling.
  */
 void fuzz_octal(int argc, char *argv[]) {
     struct tar_t archive;
@@ -139,7 +139,7 @@ void fuzz_octal(int argc, char *argv[]) {
 }
 
 /**
- * Fuzz multiple string payloads into every string field in tar header.
+ * Fuzz multiple string payloads into every field in tar header.
  */
 void fuzz_strings_injection(int argc, char* argv[]) {
     struct tar_t archive;
@@ -183,7 +183,7 @@ void fuzz_strings_injection(int argc, char* argv[]) {
 }
 
 /**
- * Fuzz GNU base-256 numeric encoding in selected fields.
+ * Fuzz GNU base-256 numeric encoding in selected header fields.
  */
 void fuzz_on_gnu_base256(int argc, char* argv[]){
     struct tar_t archive;
@@ -219,7 +219,7 @@ void fuzz_on_gnu_base256(int argc, char* argv[]){
 }
 
 /**
- * Fuzz all 2-digit version fields [00..99].
+ * Fuzz version header field [00..99].
  */
 void fuzz_version(int argc, char* argv[]) {
     struct tar_t archive;
@@ -244,7 +244,7 @@ void fuzz_version(int argc, char* argv[]) {
 
 /**
  * Set the tar size field to an octal representation of a regular file size.
- * @param archive: tar header whose size will be set.
+ * @param archive: tar header which size will be set.
  * @param size: numeric file size.
  */
 static void set_file_size(struct tar_t *archive, unsigned long long size) {
@@ -257,8 +257,8 @@ static void set_file_size(struct tar_t *archive, unsigned long long size) {
  * Write a tar header with optional file data to a file.
  * @param file: open file pointer in write mode.
  * @param entry: tar header to write.
- * @param data: optional file data to write after header (NULL if size is 0).
- * @param size: size of file data in bytes.
+ * @param data: optional file data to write after header.
+ * @param size: size of file data.
  */
 static void write_header_with_data(FILE *file, struct tar_t *entry, const unsigned char *data, size_t size) {
     calculate_checksum(entry);
@@ -273,7 +273,7 @@ static void write_header_with_data(FILE *file, struct tar_t *entry, const unsign
 }
 
 /**
- * Fuzz archive with two entries that share same name and size metadata.
+ * Fuzz tar headers with duplicate names and sizes.
  */
 void fuzz_duplicate_headers(int argc, char* argv[]) {
     struct tar_t first;
@@ -342,7 +342,7 @@ void fuzz_duplicate_headers(int argc, char* argv[]) {
 }
 
 /**
- * Fuzz by truncating the archive at various positions within header fields.
+ * Fuzz by truncating the archive at various positions in header fields.
  */
 void fuzz_by_truncation(int argc, char* argv[]) {
     struct tar_t archive;
@@ -396,9 +396,9 @@ void fuzz_by_truncation(int argc, char* argv[]) {
     }
 }
 
-
-
-
+/**
+ * Fuzz by truncating the archive in the middle of file data.
+ */
 void fuzz_by_truncation_on_data(int argc, char* argv[]){
     struct tar_t archive;
     const char* tested_file = argv[1];
@@ -411,10 +411,10 @@ void fuzz_by_truncation_on_data(int argc, char* argv[]){
     strncpy(archive.name,"bait.txt",11);
     archive.typeflag = '0';
 
-    strncpy(archive.magic, "ustar", 6);
-    strncpy(archive.version, "00", 2);
+    memcpy(archive.magic, "ustar", sizeof(archive.magic));
+    memcpy(archive.version, "00", sizeof(archive.version));
 
-    strncpy(archive.size, "00000002000", 12);
+    strncpy(archive.size, "00000002000", sizeof(archive.size));
     f = fopen("archive.tar", "wb");
     if (f){
         fwrite(&archive, 1, 512, f);
@@ -433,7 +433,9 @@ void fuzz_by_truncation_on_data(int argc, char* argv[]){
 
 }
 
-
+/**
+ * Fuzz by forging the checksum field.
+ */
 void fuzz_by_checksum_forgery(int argc, char* argv[]) {
     struct tar_t archive;
     const char* tested_file = get_filename(argv[1]);
@@ -442,9 +444,9 @@ void fuzz_by_checksum_forgery(int argc, char* argv[]) {
     int result;
 
     memset(&archive, '\xFF', sizeof(struct tar_t));
-    strncpy(archive.magic,"ustar",6);
-    strncpy(archive.version,"00",2);
-    strncpy(archive.name,"false.txt",10);
+    memcpy(archive.magic, "ustar", sizeof(archive.magic));
+    memcpy(archive.version, "00", sizeof(archive.version));
+    strncpy(archive.name, "false.txt", sizeof(archive.name));
     archive.typeflag = '0';
 
     memset(archive.chksum, ' ',8);
@@ -488,5 +490,4 @@ void fuzz_by_checksum_forgery(int argc, char* argv[]) {
             fclose(f);
         }
     }
-
 }

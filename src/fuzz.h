@@ -15,4 +15,5 @@ void fuzz_on_gnu_base256(int argc, char* argv[]);
 void fuzz_by_truncation(int argc, char* argv[]);
 void fuzz_by_truncation_on_data(int argc, char* argv[]);
 void fuzz_by_checksum_forgery(int argc, char* argv[]);
+
 #endif
