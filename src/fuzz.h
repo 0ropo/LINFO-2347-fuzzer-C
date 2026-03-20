@@ -11,6 +11,8 @@ void fuzz_strings_injection(int argc, char* argv[]);
 void fuzz_on_gnu_base256(int argc, char* argv[]);
 void fuzz_version(int argc, char* argv[]);
 void fuzz_duplicate_headers(int argc, char* argv[]);
+void fuzz_on_gnu_base256(int argc, char* argv[]);
 void fuzz_by_truncation(int argc, char* argv[]);
-
+void fuzz_by_truncation_on_data(int argc, char* argv[]);
+void fuzz_by_checksum_forgery(int argc, char* argv[]);
 #endif

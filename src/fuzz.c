@@ -22,10 +22,10 @@ void run_fuzz(int argc, char* argv[], struct tar_t* archive, const char* success
         printf("[OK] Crash detected!\n");
         generate_archive(archive, success_name);
         printf("Saved crashing archive as: %s\n", success_name);
-    } 
+    }
     else if (result == 0) {
         printf("[KO] No crash.\n");
-    } 
+    }
     else {
         printf("[ERR] validate_fuzzing failed.\n");
     }
@@ -120,7 +120,7 @@ void fuzz_octal(int argc, char *argv[]) {
         {"gname", offsetof(struct tar_t, gname), sizeof(archive.gname)}
     };
 
-    const char* payload[] = {"88888888","99999999999"," 123","123 ","+123","-000001","0x123","\000123","0000000", "-200"};
+    const char* payload[] = {"88888888","99999999999"," 123","123 ","+123","-000001","0x123","\000123","0000000", "-200","-2147483648","2147483647","9223372036854775807"};
 
     int fields_size = sizeof(fields) / sizeof(fields[0]);
     int payload_size = sizeof(payload)/sizeof(payload[0]);
@@ -160,7 +160,7 @@ void fuzz_strings_injection(int argc, char* argv[]) {
         {"gname", offsetof(struct tar_t, gname), sizeof(archive.gname)}
     };
 
-    const char* payload[] = {"../../../../../../etc/hostname", "/%x/%n/%s/%p","%s%s%s%s%s%s%s","A\x00B\x00C\x00D"};
+    const char* payload[] = {"../../../../../../etc/hostname", "/%x/%n/%s/%p","%s%s%s%s%s%s%s","\n\n\n\n\n\n\n\n","A\x00B\x00C\x00D"};
 
     int fields_size = sizeof(fields) / sizeof(fields[0]);
     int payload_size = sizeof(payload) / sizeof(payload[0]);
@@ -394,4 +394,99 @@ void fuzz_by_truncation(int argc, char* argv[]) {
             }
         }
     }
+}
+
+
+
+
+void fuzz_by_truncation_on_data(int argc, char* argv[]){
+    struct tar_t archive;
+    const char* tested_file = argv[1];
+    char success_name[256];
+    FILE *f;
+    int result;
+
+    init_clean_archive(&archive);
+
+    strncpy(archive.name,"bait.txt",11);
+    archive.typeflag = '0';
+
+    strncpy(archive.magic, "ustar", 6);
+    strncpy(archive.version, "00", 2);
+
+    strncpy(archive.size, "00000002000", 12);
+    f = fopen("archive.tar", "wb");
+    if (f){
+        fwrite(&archive, 1, 512, f);
+        fclose(f);
+    }
+
+    result = validate_fuzzing(argc, argv);
+    if (result == 1){
+        snprintf(success_name, sizeof(success_name), "success_truncation_on_data_%s_%s.tar",archive.name, tested_file);
+        f = fopen(success_name, "wb");
+        if (f){
+            fwrite(&archive, 1, 512, f);
+            fclose(f);
+        }
+    }
+
+}
+
+
+void fuzz_by_checksum_forgery(int argc, char* argv[]) {
+    struct tar_t archive;
+    const char* tested_file = get_filename(argv[1]);
+    char success_name[256];
+    FILE *f;
+    int result;
+
+    memset(&archive, '\xFF', sizeof(struct tar_t));
+    strncpy(archive.magic,"ustar",6);
+    strncpy(archive.version,"00",2);
+    strncpy(archive.name,"false.txt",10);
+    archive.typeflag = '0';
+
+    memset(archive.chksum, ' ',8);
+
+    int signed_sum = 0;
+    unsigned int unsigned_sum = 0;
+    char *ptr = (char *)&archive;
+
+    for(int i = 0; i < 512;i++){
+        signed_sum += ptr[i];
+        unsigned_sum += (unsigned char)ptr[i];
+    }
+
+    snprintf(archive.chksum, 8, "%06o", unsigned_sum + 1);
+
+    f = fopen("archive.tar", "wb");
+    fwrite(&archive,1,512,f);
+    fclose(f);
+
+    result = validate_fuzzing(argc, argv);
+    if (result == 1){
+        snprintf(success_name, sizeof(success_name), "success_checksum1_forgery_%s_%s.tar",  archive.name, tested_file);
+        f = fopen(success_name, "wb");
+        if (f){
+            fwrite(&archive, 1, 512, f);
+            fclose(f);
+        }
+    }
+
+    snprintf(archive.chksum, 8, "%06o", signed_sum & 0x3FFFF);
+    f = fopen("archive.tar", "wb");
+    fwrite(&archive, 1, 512, f);
+    fclose(f);
+
+    result = validate_fuzzing(argc,argv);
+    if (result == 1){
+        snprintf(success_name, sizeof(success_name), "success_checksum2_forgery_%s_%s.tar",  archive.name, tested_file);
+        f = fopen(success_name, "wb");
+        if (f){
+            fwrite(&archive, 1, 512, f);
+            fclose(f);
+        }
+    }
+
 }
